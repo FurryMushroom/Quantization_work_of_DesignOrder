@@ -8,8 +8,12 @@ I am an intern of DesignOrder with the responsibility to research on quantizatio
 Thank you for clicking into this page and feel free to correct or give advice to me if there's any deficiency or error!
 
 I've just read some relatively new papers on this topic recently:
-* Smoothquant;
-* Olive; might be of great potential, and the experiment results have been reproduced.
+* Smoothquant; might be the most practical one, as it focuses on quantizing to int8 format, which has been supported by mainstream nv products. And it also has been encapsulated as a pypi package.
+
+  Transfer difficulty from activations to weights. An inspiring idea, but it's doubtful that for different input, will the outliers cluster in same channels?
+* Olive; might be of great potential, and the experiment results have been reproduced. But it seems to need hardware support to outperform others, E2M1 and E4M3 operations do not seem to be supported by current GPUs.
+
+  Introduces outlier-victim pairs to tackle the problem of quantizing outliers.
 * Qlora;
 * PEQA;
 * RPTQ;
