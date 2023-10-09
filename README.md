@@ -7,6 +7,7 @@ I am a fourth grade undergraduate student, with limited knowledge storage and cl
 
 Thank you for clicking into this page and feel free to correct or give advice to me if there's any deficiency or error!
 
+## Comprehension of recently devised approaches
 I've just read some relatively new papers on this topic recently:
 * Smoothquant; might be the most practical one, as it focuses on quantizing to int8 format, which has been supported by mainstream nv products. And it has also been encapsulated as a pypi package.
 
@@ -68,9 +69,12 @@ followed by quantization again could potentially have a detrimental effect on in
   
   However, these are not taken into our account because of lack of hardware support.
 * Outlier Supression+;
-  Introduces optimal channel-wise shifting and scaling operations, out of the fact that distribution of values or outliers is not only varying between channels, but also asymmetric in any channel. This correspond to mathematic intuitive greatly, and is believed to achieve satisfactory performance in real practice.
+  Introduces optimal channel-wise shifting and scaling operations, out of the fact that distribution of values or outliers is not only varying between channels, but also asymmetric in every channel. This correspond to mathematic intuitive greatly, and is believed to achieve satisfactory performance in real practice.
   The experiments include comparisons with smoothquant, and outperforms it. What's confusing is that some of the experiments carried out on INT6 format, which hasn't been supported by any hardware as far as I know.
   
 They are on post-training quantization of both weights and activations, and mostly devised by Chinese scholars. I wonder if it's I read too few papers or it's just because this area is particularly concerned by Chinese researchers, maybe out of the restriction by US government on Chinese clients purchasing nv GPUs.
 
 The papers or approaches listed above is also introduced in 'A Survey on Model Compression for Large Language Models' by Zhu et al.. 
+## Investigations of current available hardware
+DesignOrder's main computation hardware is nv A800. Investigate about it will bring benefits in the aspect of quantization, which tightly correlates with hardware.
+
