@@ -98,4 +98,77 @@ They are on post-training quantization of both weights and activations, and most
 The papers or approaches listed above is also introduced in 'A Survey on Model Compression for Large Language Models' by Zhu et al.. 
 ## Investigations of current available hardware
 DesignOrder's main computation hardware is nv A800. Investigate about it will bring benefits in the aspect of quantization, which tightly correlates with hardware.
+<p align="center">
+  <img src="figure/a800_1.png">
+</p>
+<p align="center">
+  <img src="figure/a800_2.png">
+</p>
+The A800 uses the Ampere architecture, where each SM unit is divided into 4 processing blocks, in which each processing block contains:
 
+*1 Warp Scheduler, 1 Dispatch Unit
+*8 FP64 Cores
+*16 FP32 Cores
+*16 INT32 Cores
+*1 Tensor Core
+*8 LD/ST Units
+*4 SFUs
+
+The NVIDIA A800 uses the NVIDIA TensorRT inference optimization engine, which can accelerate various deep learning inference tasks.
+Tensor Core is a major innovation that started with the Volta architecture. The fundamental reason is that the GPU is still too versatile to do AI, the most common Conv/Gemm operation still has to be encoded into a bunch of FMA, and the hardware level still needs to rotate the data according to register-ALU-register-ALU-register, and the effect-energy consumption ratio is completely incomparable to ASIC.
+
+Google released TPU, an internal systolic array, which achieves a very high energy consumption ratio by allowing data to flow between ALUs and eliminating repetitive access.
+
+NVIDIA doesn't seem to have directly disclosed implementation details for Tensor Cores, but it's generally believed that this is a small systolic array
+
+Functions of the individual units in a typical SM:
+
+CUDA Core: Responsible for performing single-precision operations such as FMUL, FADD, and FFMA. To improve the throughput of instructions, CUDA Core is the pipelined.
+DP Unit: Responsible for performing duoble precision operations.
+LD/ST: Responsible for memory load, store and other operations.
+SFU: The Special Function Unit is responsible for calculating special functions, such as __cosf(), __expf() in CUDA, and the intrinsics calls the SFU unit. It should be noted that SFU implements fast approximation operation, which may affect accuracy.
+register file: A register group used to store data
+dispatch unit: responsible for assigning different types of instructions to different units for execution
+Warp Scheduler: Responsible for managing a series of Warps and selecting eligible Warp launch instructions
+The hash power of the entire GPU chip is equal to the hash power of a single SM multiplied by the number of SMs.
+
+Taking the Tesla P100 as an example, the GPU frequency is 1.48GHz, the number of single-precision CUDA Cores is 64, and each CUDA core can execute one FFMA instruction and do two floating-point calculations in a single clock cycle. So the hash power of a single SM and the entire GPU is calculated as follows:
+
+Single SM FP32 hashrate = 1.48 GHz * 64 CUDA Cores * 2 Operations/cycle = 189.44 GFLOPs
+P100 FP32 hashrate = 189.44 GFLOPs * 56 SMs = 10.6 TFLOPs
+P100 FP16 hashrate = 10.6 * 2 = 21 TFLOPs
+
+Volta's tensor core A cycle can calculate the multiplication and addition operation of two 4x4 matrices, or 64 FMAs. There are 8 tensor cores in an SM of a volta, and the peak computing power is 8x64=512 FMA. While a pascal SM species has 64 cuda cores, a cycle can calculate 64 FMAs. The entire Tesla V100 GPU has 80 SMs, the main frequency is 1.53GHz, and its computing power is calculated as follows:
+
+Single SM FP16 hashrate = 1.53 GHz * 8 Tensor Cores * 128 Operations/cycle = 1556.72 GFLOPs
+V100 FP16 hashrate = 1556.72 GFLOPs * 80 SMs = 124.5 TFLOPs
+
+The introduction of tensor cores has greatly increased the computing power of GPUs, but the progress of memory bandwidth has been relatively slow. This also makes more and more workloads, more and more inclined towards memory bound. Therefore, in modern GPU development, how to optimize memory access is becoming more and more important.
+
+A100 SM introduces the new third-generation Tensor Cores, which can perform 256 FP16/FP32 FMA calculations per clock cycle per Tensor Core.
+
+The A100 has 4 Tensor Cores per SM, and each SM provides 1024 dense FP16/FP32 FMA operations, doubling the hashrate per SM compared to Volta and Turing.
+
+Third-generation Tensor Core features:
+The supported data types are FP16, BF16, TF32, FP64, INT8, INT4, and INT1, with double the performance and inversely proportional to the data bit width;
+BF16/FP32 mixed precision and FP16/FP32 operate at the same rate;
+INT8 Tensor Core DL with sparse optimization inference is 20 times faster than V100 INT8;
+
+
+TOPS only refers to the trillions of operations per second of the processor, which need to be combined with the accuracy of specific data types to be converted to FLOPS. The number of MACs (MAC/Multiply Accumulate) in 8-bit precision is halved at FP16 (half-floating-point/16-bit floating-point) accuracy. PS: NVIDIA, Intel, and Arm have teamed up to write the FP8 Formats for Deep Learning white paper. The industry has now dropped from 32 bits to 16 bits, and now even shifted to 8 bits (FP8 precision: 8-bit floating-point arithmetic specification), which is why NVIDIA uses FP8 to characterize computing power. NVIDIA's Thor 2000TOPS is also talking about this.
+
+In NPU, the chip uses MAC array (multiplication and accumulation operation, MAC/Multiply Accumulate) as NPU to accelerate the neural network, and many operations (such as convolution operation, dot product operation, matrix operation, digital filter operation, and even polynomial evaluation operation) can be decomposed into several MAC instructions, so the efficiency of the above operations can be improved. MAC matrix is the core of AI chips and is a very mature architecture. NVIDIA also uses a 3-dimensional cube calculation unit to complete the matrix multiplication and addition operation in the example. TOPS is the number of MAC operations in 1 second, and the calculation formula is:
+TOPS = MAC matrix row * MAC matrix column * 2 * main frequency;
+
+Calculation method of TOPS theoretical value
+The advertised TOPS are often the theoretical values of the arithmetic units, rather than the real values of the entire hardware system. The true value depends more on the internal SRAM, external DRAM, instruction set, and model optimization. In the worst case, the real value is 1/10 of the theoretical value or even lower, which is generally 50% of the utilization rate.
+
+The theoretical value depends on the precision of the operation, the number of MACs (MAC/Multiply Accumulate) and the frequency of operation. It can be roughly simplified to the fact that the number of MACs in INT8 accuracy is halved at FP16 accuracy. FP32 is cut in half again, and so on.
+Assume that there are 512 MAC arithmetic units running at 1GHz, INT8 data structures and precision, and a hashrate of 512 x 2 x 1 GHz = 1000 Billion Operations/Second = 1 TOPS (Tera-Operations/second). FP16 accuracy is 0.5TOPS, FP32 accuracy is 0.25TOPS. NVIDIA's Tesla V100 has 640 Tensor cores, each core has 64 MAC arithmetic units, and runs at a frequency of about 1.480GHz, so the computing power under INT8 is 640 * 64 * 2 * 1.480 GHz = 121TOPS.
+
+The most important factor determining the true value of computing power is memory (SRAM and DRAM) bandwidth, and the algorithm's demand for memory bandwidth is usually expressed by the amount of "operational intensity, or arithmetic intensity", in OPs/byte. This amount means how many operations can be supported per unit of data read in the algorithm on average. The greater the operation intensity, it means that the unit data can support more operations, which means that the algorithm has lower requirements for memory bandwidth.
+
+Let's take an example. For a 3x3 convolution operation with a step size of 1, assume that the input data plane size is 64x64. For simplicity, assume that both the input and output features are 1. At this time, a total of 62x62 convolution operations are required, and each convolution needs to do 3x3=9 multiplication and addition operations, so the total number of calculations is 34596, and the amount of data is (assuming that both the data and the convolution kernel use single-precision floating-point numbers 2byte): 64x64x2 (input data) + 3x3x2 (convolution kernel data) = 8210 byte, so the operation intensity is 34596/8210=4.21. If we switch to 1x1 convolution, then the total number of computations becomes 64x64=4096, and the amount of data required is 64x64x2 + 1x1x2=8194. Obviously, switching to 1x1 convolution can reduce the amount of computation by nearly 9 times, but the computational intensity is also reduced to 0.5, that is, the demand for memory bandwidth also increases by nearly 9 times. Therefore, if the memory bandwidth cannot meet the 1x1 convolution calculation, then switching to 1x1 convolution computing reduces the computation amount by nearly 9 times, but it cannot increase the computing speed by 9 times.
+
+
+Conclusion: Theoretically, when the company's existing hardware uses INT8 and INT4 quantization, it can simultaneously compress the memory occupation and improve the inference speed, and theoretically the inference speed of INT8 is twice that of 16-bit, and the inference speed of INT4 is 4 times that of 16-bit.
