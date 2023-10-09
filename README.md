@@ -73,4 +73,4 @@ followed by quantization again could potentially have a detrimental effect on in
   
 They are on post-training quantization of both weights and activations, and mostly devised by Chinese scholars. I wonder if it's I read too few papers or it's just because this area is particularly concerned by Chinese researchers, maybe out of the restriction by US government on Chinese clients purchasing nv GPUs.
 
-The papers or approaches listed above is introduced by 'A Survey on Model Compression for Large Language Models' by Zhu et al.. 
+The papers or approaches listed above is also introduced in 'A Survey on Model Compression for Large Language Models' by Zhu et al.. 
