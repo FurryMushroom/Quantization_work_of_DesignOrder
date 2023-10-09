@@ -14,7 +14,6 @@ I've just read some relatively new papers on this topic recently:
 * Olive; might be of great potential, and the experiment results about accuracies have been reproduced. But it seems to need hardware support to outperform others, E2M1 and E4M3 operations do not seem to be supported by current GPUs.
 
   Introduces outlier-victim pairs to tackle the problem of quantizing outliers. Sacrifice the value beside an outlier (in the matrix) to let the outlier have a wider range to represent its value; the victim, who gets sacrificed, is substituted as an identifier. The paper also introduces Abfloat data format innovatively, and proves that E2M1(exponent2, mantissa 1 and sign 1) excels in 4 bit representations and E4M3 excels in 8 bit representations.
-* Qlora;
 
 * RPTQ;
   Reorder-based PTQ, cluster the channels in the activations and reorganize them for quantization.
@@ -50,8 +49,28 @@ is also no consistent superior format for W8A8 quantization. The key idea is to 
 
   However, DesignOrder does not possess H100 or more advanced GPUs so far, and I'm also skeptical that MAC between FP and INT retain the efficiency of INT's. 
 * Zeroquant-FP;
+   This paper claims that FP8 activation consistently outshines its integer (INT8) equivalent, and for weight quantization, FP4 exhibits comparable, if not superior, performance to INT4, simplifying deployment
+on FP-supported hardware like H100.
+
+  First it invokes studies that indicate PTQ on 8-bit integer (INT8) weight-only quantization does not compromise the quality of LLMs, and only a
+minor accuracy drop is observed with INT4 weight quantization when advanced algorithm such as GPTQ
+applied. In studies such as ZeroQuants, SmoothQuant and others, reducing the precision of activation from FP16 to INT8 inevitably results in a decrease in model
+quality. Despite the potentially higher computation cost of FP8 compared to INT8 and in light of hardware
+support, the improved model quality could make this trade-off worthwhile and merits further exploration. In larger
+models, FP8 activation and weight quantization result in negligible degradation. Given the limitations of integer quantization, floating-point methods such as FP8 or FP4, utilizing ExMy
+notation, emerge as superior alternatives.
+
+  The actual software implementation of W4A8 in H100 NVIDIA hardware is
+that one needs to cast W’s FP4 to match the FP8 precision used in A. The direct method of dequantization
+followed by quantization again could potentially have a detrimental effect on inference efficiency, hence the paper constrains S(scaling factor) to be a power of 2 to alleviate.
+
+  At last, it's concluded that FP8 Activation is much better than INT8, FP8 weights rival INT8, while FP4 weights potentially outperform INT4.
+  
+  However, these are not taken into our account because of lack of hardware support.
 * Outlier Supression+;
   Introduces optimal channel-wise shifting and scaling operations, out of the fact that distribution of values or outliers is not only varying between channels, but also asymmetric in any channel. This correspond to mathematic intuitive greatly, and is believed to achieve satisfactory performance in real practice.
   The experiments include comparisons with smoothquant, and outperforms it. What's confusing is that some of the experiments carried out on INT6 format, which hasn't been supported by any hardware as far as I know.
-They are on post-training quantization, and mostly devised by Chinese scholars. I wonder if it's I read too few papers or it's just because this area is particularly concerned by Chinese researchers, maybe out of the restriction by US government on Chinese clients purchasing nv GPUs.
+  
+They are on post-training quantization of both weights and activations, and mostly devised by Chinese scholars. I wonder if it's I read too few papers or it's just because this area is particularly concerned by Chinese researchers, maybe out of the restriction by US government on Chinese clients purchasing nv GPUs.
 
+The papers or approaches listed above is introduced by 'A Survey on Model Compression for Large Language Models' by Zhu et al.. 
