@@ -12,9 +12,16 @@ I've just read some relatively new papers on this topic recently:
 * Smoothquant; might be the most practical one, as it focuses on quantizing to int8 format, which has been supported by mainstream nv products. And it has also been encapsulated as a pypi package.
 
   Transfer quantizaiton difficulty from activations to weights, as the multitude and number of outliers in activations greatly exceed those in weights. Use a small benchmark dataset to get channel-wise activation scales and apply scaling to weights and activations accordingly, do not insert pseudo-quantization nodes between layers in inference. An inspiring idea, but it's doubtful that for different inputs, will the outliers cluster in same channels?
+<p align="center">
+  <img src="figure/smoothquant.png">
+</p>
+
 * Olive; might be of great potential, and the experiment results about accuracies have been reproduced. But it seems to need hardware support to outperform others, E2M1 and E4M3 operations do not seem to be supported by current GPUs.
 
   Introduces outlier-victim pairs to tackle the problem of quantizing outliers. Sacrifice the value beside an outlier (in the matrix) to let the outlier have a wider range to represent its value; the victim, who gets sacrificed, is substituted as an identifier. The paper also introduces Abfloat data format innovatively, and proves that E2M1(exponent2, mantissa 1 and sign 1) excels in 4 bit representations and E4M3 excels in 8 bit representations.
+<p align="center">
+  <img src="figure/olive.png">
+</p>
 
 * RPTQ;
   Reorder-based PTQ, cluster the channels in the activations and reorganize them for quantization.
@@ -26,6 +33,10 @@ managing quantization parameters for each cluster rather than each individual ch
   The paper gives a brief introduction to smoothquant to compare with and demonstrate the advantages of RPTQ but I'm suspicious about that. The savings on memory and computation load, theroretically, is not prominent. But clustering channels by K-means rendering scales from channel-wise to cluster-wise intuitively decreases accuracy of representing, expanding quantization errors, often calculated as MSE.
 
   And what's important is that this hasn't been encapsulated, thus not convenient to use(
+    <p align="center">
+  <img src="figure/rptq.png">
+</p>
+
 * MoFQ;
   Mixture of Formats Quantization, which selects the optimal format on a layer-wise basis.
 FP8 has already garnered support from leading hardware vendors, mainly refers to H100 and H800, which offers identical peak performance for FP8 and INT8 operations.
@@ -49,9 +60,16 @@ for activation, the accuracy of output activation depends on the impact of weigh
 is also no consistent superior format for W8A8 quantization. The key idea is to leverage the complementary advantages of both formats in a unified framework, thereby maximizing the potential benefits.
 
   However, DesignOrder does not possess H100 or more advanced GPUs so far, and I'm also skeptical that MAC between FP and INT retain the efficiency of INT's. 
+   <p align="center">
+  <img src="figure/mofq_1.png">
+</p>
+   <p align="center">
+  <img src="figure/mofq_2.png">
+</p>
+
 * Zeroquant-FP;
    This paper claims that FP8 activation consistently outshines its integer (INT8) equivalent, and for weight quantization, FP4 exhibits comparable, if not superior, performance to INT4, simplifying deployment
-on FP-supported hardware like H100.
+  on FP-supported hardware like H100.
 
   First it invokes studies that indicate PTQ on 8-bit integer (INT8) weight-only quantization does not compromise the quality of LLMs, and only a
 minor accuracy drop is observed with INT4 weight quantization when advanced algorithm such as GPTQ
@@ -68,10 +86,13 @@ followed by quantization again could potentially have a detrimental effect on in
   At last, it's concluded that FP8 Activation is much better than INT8, FP8 weights rival INT8, while FP4 weights potentially outperform INT4.
   
   However, these are not taken into our account because of lack of hardware support.
+
 * Outlier Supression+;
   Introduces optimal channel-wise shifting and scaling operations, out of the fact that distribution of values or outliers is not only varying between channels, but also asymmetric in every channel. This correspond to mathematic intuitive greatly, and is believed to achieve satisfactory performance in real practice.
   The experiments include comparisons with smoothquant, and outperforms it. What's confusing is that some of the experiments carried out on INT6 format, which hasn't been supported by any hardware as far as I know.
-  
+  <p align="center">
+  <img src="figure/outlier_suppression_plus.png">
+</p>
 They are on post-training quantization of both weights and activations, and mostly devised by Chinese scholars. I wonder if it's I read too few papers or it's just because this area is particularly concerned by Chinese researchers, maybe out of the restriction by US government on Chinese clients purchasing nv GPUs.
 
 The papers or approaches listed above is also introduced in 'A Survey on Model Compression for Large Language Models' by Zhu et al.. 
