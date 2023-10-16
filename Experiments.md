@@ -48,6 +48,121 @@ Oringinal:
 
 We can see the reproduced results are consistent with the original. However, I lacked a means to monitor the gpu memory occupation, inference time before and after olive quantization isn't experienmented either.  
 
+Update of 10.11:
+
+I've got several means to monitor GPU memory occupation constantly. First, I was taught that it's not advisable to run front-end training or inference. If the front-end connection breaks or the terminal shut down, 
+The process will be killed and this can result in great loss of time and computaional resources. Run command like such:
+
+    nohup [your command] &
+
+This will generate a nohup.out file in current path which records the output you should have seen in the terminal.
+But if you want to terminate the process, you need to find its PID and kill accordingly.
+
+    ps -aux | grep "myShellScript.sh" 
+
+or use 
+
+    ps -def | grep "myShellScript.sh"
+
+to search for the PID. And kill the process by
+
+    kill -9 PID
+
+And also there are several ways to continuously monitor the GPU memory:
+
+Flush the nvidia-smi command every 10 seconds:
+    nvidia-smi -l 10
+The above method displays current and history information at the same time. And this way only shows current info, flushing every 1 second:
+
+    watch -n 1 nvidia-smi
+
+nvtop: 
+
+    sudo apt install nvtop
+nvitop:
+this can be installed by pip as a python package. Run this command to display overall GPU info:
+
+    nvitop -m full
+
 # Smoothquant
 When referring to the github repo of smoothquant I discovered peers discussing auto GPTQ. That seems an approach devised earlier and also encapsulated, so I'll also conduction investigation and maybe experiment on it.
 
+Smoothquant relies on torch-int, both are repos created and maintained by mit-han-lab. Note that there are two jupyter notebook files to reproduce the experiment results, but one is already unusable.
+
+See issue #33 and issue #58, of which the latter was created by me.
+
+The configuration and compilation of torch-int seem to be what's really challenging for me student with developing knowledge and capabilities.
+
+Following the instructions in the readme file, error just occured when executing:
+
+    git clone --recurse-submodules https://github.com/Guangxuan-Xiao/torch-int.git
+
+The error information is as follows:
+
+    Submodule 'submodules/cutlass' (git@github.com:NVIDIA/cutlass.git) registered for path 'submodules/cutlass'
+    Cloning into '/opt/conda/bin/torch-int/submodules/cutlass'...
+    kex_exchange_identification: Connection closed by remote host
+    fatal: Could not read from remote repository.
+
+I felt strange that the Nv repo, which should be in well maintenance cannot be found. I created the issue #22 but later I found the answer to the question in issue #3.
+
+The ssh repo address sometimes fails to function, use https instead.
+
+    modify the address in .gitmodules as: https://github.com/NVIDIA/cutlass.git 
+
+This is familiar to any github usr. I created a new repo and pulled the content of torch-int repo, having the address fixed, and pushed it to Github. Then I was pulling this repo in the docker environment of the company, but somethings were missed.
+
+    make: *** No targets specified and no makefile found.  Stop.
+
+The cloning of cutlass repo wasn't successful yet. I quickly found it was the folder didn't exist. I suspected it's because git ignores empty folders, and results given by search engine confirmed this.
+I tried ways of creating a .gitignore or .gitkeep file, however they resulted in a non-empty folder thus obstructing the cloning.
+
+Why don't I just download zip, uncompress and upload? This seems foolish, but it worked. 
+
+The next problem is a version conflict.
+
+    CMake Error at CMakeLists.txt:29 (cmake_minimum_required):
+    CMake 3.19 or higher is required.  You are running version 3.16.3
+
+I used pip to install cmake of a higher version, and it was within expectaion that the system still used the original. Following tutorials of CSDN, somewhat like Chinese version of stackoverflow:
+
+Deleted cmake of the old version:
+
+    sudo rm -rf /usr/bin/cmake
+
+The docker env didn't even have sudo. Run:
+
+    apt-get install sudo
+
+Then, searched for our new cmake executable file:
+
+    which cmake
+
+There was no response. But thanks for pip, which told me where the package was:
+
+    Requirement already satisfied: cmake==3.20.2 in /opt/conda/lib/python3.8/site-packages (3.20.2)
+
+So I built the soft link by:
+
+    sudo ln -s /opt/conda/lib/python3.8/site-packages/cmake/data/bin/cmake /usr/bin/cmake
+
+And it worked. 
+
+New problem stroke in the configuration process by cmake:
+
+    -- Found Python3: /usr/bin/python3.8 (found suitable version "3.8.10", minimum required is "3.5") found components: Interpreter 
+    CMake Error at CMakeLists.txt:100 (message):
+    Error installing cutlass_library package.  See
+    /opt/torch-int/submodules/cutlass/build/cutlass_library_installation.log
+
+
+    -- Configuring incomplete, errors occurred!
+
+And what the file contained seemed really easy to solve:
+
+        Traceback (most recent call last):
+    File "/opt/torch-int/submodules/cutlass/python/setup_library.py", line 33, in <module>
+        from setuptools import setup
+    ModuleNotFoundError: No module named 'setuptools'
+
+But I had this package in my environment.
