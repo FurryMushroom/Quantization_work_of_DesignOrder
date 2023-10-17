@@ -150,6 +150,23 @@ And it worked.
 
 New problem stroke in the configuration process by cmake:
 
+    -- CMake Version: 3.20.2
+    -- The CXX compiler identification is GNU 9.3.0
+    -- Detecting CXX compiler ABI info
+    -- Detecting CXX compiler ABI info - done
+    -- Check for working CXX compiler: /usr/bin/g++ - skipped
+    -- Detecting CXX compile features
+    -- Detecting CXX compile features - done
+    -- The CUDA compiler identification is NVIDIA 11.6.55
+    -- Detecting CUDA compiler ABI info
+    -- Detecting CUDA compiler ABI info - done
+    -- Check for working CUDA compiler: /usr/local/cuda/bin/nvcc - skipped
+    -- Detecting CUDA compile features
+    -- Detecting CUDA compile features - done
+    -- CUDART: /usr/local/cuda/lib64/libcudart.so
+    -- CUDA Driver: /usr/local/cuda/lib64/stubs/libcuda.so
+    -- NVRTC: /usr/local/cuda/lib64/libnvrtc.so
+    -- Default Install Location: install
     -- Found Python3: /usr/bin/python3.8 (found suitable version "3.8.10", minimum required is "3.5") found components: Interpreter 
     CMake Error at CMakeLists.txt:100 (message):
     Error installing cutlass_library package.  See
@@ -157,6 +174,8 @@ New problem stroke in the configuration process by cmake:
 
 
     -- Configuring incomplete, errors occurred!
+    See also "/opt/torch-int/submodules/cutlass/build/CMakeFiles/CMakeOutput.log".
+    make: *** No targets specified and no makefile found.  Stop.
 
 And what the file contained seemed really easy to solve:
 
@@ -165,4 +184,37 @@ And what the file contained seemed really easy to solve:
         from setuptools import setup
     ModuleNotFoundError: No module named 'setuptools'
 
-But I had this package in my environment.
+But I had this package in my environment. So let's look into the cmakelist.txt file to find out what's wrong:
+
+    # Install cutlass_library Python package
+    execute_process(
+    WORKING_DIRECTORY ${CUTLASS_DIR}/python
+    COMMAND ${Python3_EXECUTABLE} ${CUTLASS_DIR}/python/setup_library.py develop --user
+    RESULT_VARIABLE cutlass_lib_GENERATOR_INSTALL_RESULT
+    OUTPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/cutlass_library_installation.log
+    ERROR_FILE ${CMAKE_CURRENT_BINARY_DIR}/cutlass_library_installation.log
+    )
+
+    if(NOT cutlass_lib_GENERATOR_INSTALL_RESULT EQUAL 0)
+    message(FATAL_ERROR "Error installing cutlass_library package. See ${CMAKE_CURRENT_BINARY_DIR}/cutlass_library_installation.log")
+    endif()
+
+It's using Python3_EXECUTABLE as the python executable file, and that is /usr/bin/python3.8. However I have always been using python or python3, that may be what the problem lies in.
+
+Lets do some experiments:
+
+    root@439f6277dda5:/opt/torch-int# /opt/conda/bin/python3.8
+    Python 3.8.12 | packaged by conda-forge | (default, Oct 12 2021, 21:59:51) 
+    [GCC 9.4.0] on linux
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import setuptools
+    >>> import ssss
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    ModuleNotFoundError: No module named 'ssss'
+
+Well, it's not the problem, but the default python executable path is set usr/bin/python3.8. Let me figure out how to modify. 
+
+Add this to the file build_cutlass.sh:
+
+export Python3_EXECUTABLE=/opt/conda/bin/python3.8
