@@ -1,8 +1,12 @@
 # Olive
 ## Source code interpretation
+The source code of the paper is at:
+
+    https://github.com/clevercool/ANT-Quantization
+
 The core part of the code lies in olive_quantization/antquant/quant_modules.py. Generally quantization works don't disengage the routine of initializing grids and discretizing values to the grids. In simple circumstances clamp and round functions get used, but Olive uses quant_cuda.quant to complete this. I have no knowledge about the package and feel free to tell if you know anything about that.
 
-The foolowing is the part coping with outlier-victim pairs:
+The following is the part coping with outlier-victim pairs:
 
     quant_data = quant_data.view(-1)                
     mask = quant_data.abs() > 32
@@ -16,7 +20,9 @@ The foolowing is the part coping with outlier-victim pairs:
 The authors were writing elegant and glamorous code. But this seems not to correspond with the paper content, which says in a outlier-outlier pair the bigger one will be retained.
 
 Olive has really inspiring experiental results, we tried to reproduce the accuracy results on missions requiring less computational resources. And because hardware doesn't support the FP-based formats, it's predictable there won't be real savings on memory or decrease on inference time. We only conduct the INT4 experiments.
-
+## The process
+There was no obstacles worthy to be noted, the source code has a commendable quality. Follow the instructions of the README file, the executable shell file for results on relatively small models is in olive_quantization/bert/scripts.
+You may only need to modify a little here according to your environment and config.
 ## Results
 Reproduced:
 | Model | CoLA  | SST-2 | MNLI | QQP | MPRC |
