@@ -190,7 +190,7 @@ And what the file contained seemed really easy to solve:
         from setuptools import setup
     ModuleNotFoundError: No module named 'setuptools'
 
-But I had this package in my environment. So let's look into the cmakelist.txt file to find out what's wrong:
+But I had this package in my environment. So let's look into the CMakeList.txt file to find out what's wrong:
 
     # Install cutlass_library Python package
     execute_process(
@@ -223,4 +223,49 @@ Well, it's not the problem, but the default python executable path is set usr/bi
 
 Add this to the file build_cutlass.sh:
 
-export Python3_EXECUTABLE=/opt/conda/bin/python3.8
+    export Python3_EXECUTABLE=/opt/conda/bin/python3.8
+
+This didn't work. Try another way, set the python executable in the shell file:
+
+    cmake .. -DCUTLASS_NVCC_ARCHS=80 -DCUTLASS_ENABLE_TESTS=OFF -DCUTLASS_UNITY_BUILD_ENABLED=ON -DPYTHON_EXECUTABLE=/opt/conda/bin/python3.8
+
+But this also failed. Let's give a more careful look at the file and the error message, this process is the compilation by cmake, and the prominent config file is CMakeList.txt. Following the shell script, the path is ./submodules/cutlass/CMakeList.txt. Here we found where the error occurred:
+
+    find_package(Python3 3.5 COMPONENTS Interpreter REQUIRED)
+
+    # Install cutlass_library Python package
+    execute_process(
+    WORKING_DIRECTORY ${CUTLASS_DIR}/python
+    COMMAND ${Python3_EXECUTABLE} ${CUTLASS_DIR}/python/setup_library.py develop --user
+    RESULT_VARIABLE cutlass_lib_GENERATOR_INSTALL_RESULT
+    OUTPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/cutlass_library_installation.log
+    ERROR_FILE ${CMAKE_CURRENT_BINARY_DIR}/cutlass_library_installation.log
+    )
+
+    if(NOT cutlass_lib_GENERATOR_INSTALL_RESULT EQUAL 0)
+    message(FATAL_ERROR "Error installing cutlass_library package. See ${CMAKE_CURRENT_BINARY_DIR}/cutlass_library_installation.log")
+    endif()
+
+From CSDN, I learned a liitle about find_package function:
+
+    Usage:
+    find_package(<PackageName> [version] [EXACT] [QUIET] [MODULE]
+                [REQUIRED] [[COMPONENTS] [components...]]
+                [OPTIONAL_COMPONENTS components...]
+                [NO_POLICY_SCOPE])
+
+    REQUIRED：denote that this package is essential, if cannot find the construction process reports error and terminates.
+    [COMPONENTS] [components…]：Necessary components in all the packages being searched for, if any one can't be found it failes, similar to REQUIRED, will result in termination of cmake.
+    OPTIONAL_COMPONENTS components…：will not affect cmake to continue executing if cannot find；
+    NO_POLICY_SCOPE：cmake policy，refer to：cmake_policy
+    Note that among all these parameters, only PackageName is necessary, the others are all optional.
+
+It's here where the environment variable got changed. So insert such a violent sentence after:
+   
+    set(Python3_EXECUTABLE /opt/conda/bin/python3.8)
+
+And this small question is finally solved. 
+<p align="center">
+  <img src="figure/build_cutlass.png">
+</p>
+
