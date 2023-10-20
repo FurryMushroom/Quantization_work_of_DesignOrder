@@ -269,3 +269,110 @@ And this small question is finally solved.
   <img src="figure/build_cutlass.png">
 </p>
 
+Then, run
+
+    python setup.py install
+
+And within expectation, it won't go smoothly:
+
+    building 'torch_int._CUDA' extension
+    /usr/local/cuda/bin/nvcc -Itorch_int/kernels/include -I/opt/conda/lib/python3.8/site-packages/torch/include -I/opt/conda/lib/python3.8/site-packages/torch/include/torch/csrc/api/include -I/opt/conda/lib/python3.8/site-packages/torch/include/TH -I/opt/conda/lib/python3.8/site-packages/torch/include/THC -I/usr/local/cuda/include -I/opt/conda/include/python3.8 -c torch_int/kernels/linear.cu -o build/temp.linux-x86_64-3.8/torch_int/kernels/linear.o -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -O3 -std=c++14 -U__CUDA_NO_HALF_OPERATORS__ -U__CUDA_NO_HALF_CONVERSIONS__ -U__CUDA_NO_HALF2_OPERATORS__ -DCUDA_ARCH=800 -DTORCH_API_INCLUDE_EXTENSION_H -DPYBIND11_COMPILER_TYPE="_gcc" -DPYBIND11_STDLIB="_libstdcpp" -DPYBIND11_BUILD_ABI="_cxxabi1011" -DTORCH_EXTENSION_NAME=_CUDA -D_GLIBCXX_USE_CXX11_ABI=0 -gencode=arch=compute_80,code=compute_80 -gencode=arch=compute_80,code=sm_80
+    torch_int/kernels/linear.cu:4:10: fatal error: cutlass/core_io.h: No such file or directory
+        4 | #include <cutlass/core_io.h>
+          |          ^~~~~~~~~~~~~~~~~~~
+    compilation terminated.
+    error: command '/usr/local/cuda/bin/nvcc' failed with exit status 1
+
+This seems to be a problem in inclusion of C++ head file. Parts of the core_io.h file is as follows: 
+
+    #include "include/linear.h"
+    #include "include/common.h"
+
+    #include <cutlass/core_io.h>
+    #include <cutlass/cutlass.h>
+    #include <cutlass/half.h>
+
+    #include <cutlass/gemm/device/gemm.h>
+    #include <cutlass/numeric_types.h>
+    #include <cutlass/util/host_tensor.h>
+
+There should be somewhere to configure the paths of headfiles. In my knowledge the <> characters are for system or standard head files, and "" are for these added by users. The compiler will search in current path, and then in the standard head file path.
+
+However, in IDEs like VS, we can config the additional include directories. Let's look into the setup.py file to see if there are parameters for this purpose.
+
+    setup(
+        name='torch_int',
+        ext_modules=[
+            cpp_extension.CUDAExtension(
+                name='torch_int._CUDA',
+                sources=[
+                    'torch_int/kernels/linear.cu',
+                    'torch_int/kernels/bmm.cu',
+                    'torch_int/kernels/fused.cu',
+                    'torch_int/kernels/bindings.cpp',
+                ],
+                include_dirs=['torch_int/kernels/include'],
+    ...
+
+This corresponds to the error message above. So I add to include_dirs a path 'submodules/cutlass/include/cutlass', where core_id.h and several other headfiles lie in. 
+
+    building 'torch_int._CUDA' extension
+    /usr/local/cuda/bin/nvcc -Itorch_int/kernels/include -I/submodules/cutlass/include/cutlass -I/opt/conda/lib/python3.8/site-packages/torch/include 
+    ...
+    torch_int/kernels/linear.cu:4:10: fatal error: cutlass/core_io.h: No such file or directory
+        4 | #include "cutlass/core_io.h"
+        |            ^~~~~~~~~~~~~~~~~~~
+
+Obviously, the path has been read successfully, but still it doesn't work. Why does #include "include/linear.h" work but this doesn't? I can find no reason for this.
+
+Well, later I find myself stupid. When the compiler executes #include "include/linear.h" and #include "include/common.h" ,the headfiles are just found in the relative path of current folder, but I've been thinking they are found under torch_int/kernels/include. I forgot the principle that the whole path is that the include path/current path concatenates the relative path, and this elementary question has taken me several hours.
+
+After addressing this one, the next is:
+
+    torch_int/kernels/linear.cu:10:10: fatal error: cutlass/util/host_tensor.h: No such file or directory
+    10 | #include <cutlass/util/host_tensor.h>
+        |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    compilation terminated.
+
+I tried to find the headfile manually, but with no result. Luckily I remember Linux provides easy-to-use commands to do such tasks. If cannot find, it means the construction actually failed, and that's real disaster.
+
+Execute:
+
+    find -name host_tensor.h
+    ./submodules/cutlass/tools/util/include/cutlass/util/host_tensor.h
+
+After adding this to path, the include problem is solved. And the following:
+
+    /opt/torch-int/submodules/cutlass/include/cute/util/type_traits.hpp(62): error: namespace "std" has no member "conjunction"
+
+    ...
+
+    /opt/torch-int/submodules/cutlass/include/cute/util/type_traits.hpp(201): error: void_t is not a template
+
+    /opt/torch-int/submodules/cutlass/include/cute/numeric/integral_constant.hpp(41): error: "auto" is not allowed here
+
+    ...
+
+    /opt/torch-int/submodules/cutlass/include/cute/numeric/integral_constant.hpp(98): error: the template argument list of the partial specialization includes a nontype argument whose type depends on a template parameter
+
+    /opt/torch-int/submodules/cutlass/include/cute/numeric/integral_constant.hpp(99): error: "auto" is not allowed here
+
+    /opt/torch-int/submodules/cutlass/include/cute/numeric/integral_constant.hpp(99): warning #842-D: constant "n" is not used in or cannot be deduced from the template argument list of class template "cute::is_constant<<error>, const T &>"
+
+    ...
+
+    /opt/torch-int/submodules/cutlass/include/cute/numeric/integral_constant.hpp(338): error: no instance of function template "cute::abs" matches the argument list
+                argument types are: (<error-type>)
+
+    ...
+
+    /opt/torch-int/submodules/cutlass/include/cute/numeric/integral_constant.hpp(342): error: no instance of function template "cute::max" matches the argument list
+                argument types are: (<error-type>, <error-type>)
+
+    ...
+
+    Error limit reached.
+    100 errors detected in the compilation of "torch_int/kernels/linear.cu".
+    Compilation terminated.
+
+It's supposed that these are because the C++ version is too low.
