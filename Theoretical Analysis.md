@@ -4,14 +4,14 @@ I've just read some relatively new papers on this topic recently:
 
   Transfer quantizaiton difficulty from activations to weights, as the multitude and number of outliers in activations greatly exceed those in weights. Use a small benchmark dataset to get channel-wise activation scales and apply scaling to weights and activations accordingly, do not insert pseudo-quantization nodes between layers in inference. An inspiring idea, but it's doubtful that for different inputs, will the outliers cluster in same channels?
 <p align="center">
-  <img src="figure/smoothquant.png">
+  <img src="figures/smoothquant.png">
 </p>
 
 * Olive; might be of great potential, and the experiment results about accuracies have been reproduced. But it seems to need hardware support to outperform others, E2M1 and E4M3 operations do not seem to be supported by current GPUs.
 
   Introduces outlier-victim pairs to tackle the problem of quantizing outliers. Sacrifice the value beside an outlier (in the matrix) to let the outlier have a wider range to represent its value; the victim, who gets sacrificed, is substituted as an identifier. The paper also introduces Abfloat data format innovatively, and proves that E2M1(exponent2, mantissa 1 and sign 1) excels in 4 bit representations and E4M3 excels in 8 bit representations.
 <p align="center">
-  <img src="figure/olive.png">
+  <img src="figures/olive.png">
 </p>
 
 * RPTQ;
@@ -25,7 +25,7 @@ managing quantization parameters for each cluster rather than each individual ch
 
   And what's important is that this hasn't been encapsulated, thus not convenient to use(
     <p align="center">
-  <img src="figure/rptq.png">
+  <img src="figures/rptq.png">
 </p>
 
 * MoFQ;
@@ -52,10 +52,10 @@ is also no consistent superior format for W8A8 quantization. The key idea is to 
 
   However, DesignOrder does not possess H100 or more advanced GPUs so far, and I'm also skeptical that MAC between FP and INT retain the efficiency of INT's. 
    <p align="center">
-  <img src="figure/mofq_1.png">
+  <img src="figures/mofq_1.png">
 </p>
    <p align="center">
-  <img src="figure/mofq_2.png">
+  <img src="figures/mofq_2.png">
 </p>
 
 * Zeroquant-FP;
@@ -82,7 +82,7 @@ followed by quantization again could potentially have a detrimental effect on in
   Introduces optimal channel-wise shifting and scaling operations, out of the fact that distribution of values or outliers is not only varying between channels, but also asymmetric in every channel. This correspond to mathematic intuitive greatly, and is believed to achieve satisfactory performance in real practice.
   The experiments include comparisons with smoothquant, and outperforms it. What's confusing is that some of the experiments carried out on INT6 format, which hasn't been supported by any hardware as far as I know.
   <p align="center">
-  <img src="figure/outlier_suppression_plus.png">
+  <img src="figures/outlier_suppression_plus.png">
 </p>
 They are on post-training quantization of both weights and activations, and mostly devised by Chinese scholars. I wonder if it's I read too few papers or it's just because this area is particularly concerned by Chinese researchers, maybe out of the restriction by US government on Chinese clients purchasing nv GPUs.
 
@@ -90,10 +90,10 @@ The papers or approaches listed above is also introduced in 'A Survey on Model C
 # Investigations of current available hardware
 DesignOrder's main computation hardware is nv A800. Investigate about it will bring benefits in the aspect of quantization, which tightly correlates with hardware.
 <p align="center">
-  <img src="figure/a800_1.png">
+  <img src="figures/a800_1.png">
 </p>
 <p align="center">
-  <img src="figure/a800_2.png">
+  <img src="figures/a800_2.png">
 </p>
 
 ## Composition and Aritecture

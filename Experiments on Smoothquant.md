@@ -1,104 +1,13 @@
-# Olive
-## Source code interpretation
-The source code of the paper is at:
-
-    https://github.com/clevercool/ANT-Quantization
-
-The core part of the code lies in olive_quantization/antquant/quant_modules.py. Generally quantization works don't disengage the routine of initializing grids and discretizing values to the grids. In simple circumstances clamp and round functions get used, but Olive uses quant_cuda.quant to complete this. I have no knowledge about the package and feel free to tell if you know anything about that.
-
-The following is the part coping with outlier-victim pairs:
-
-    quant_data = quant_data.view(-1)                
-    mask = quant_data.abs() > 32
-    victim_odd = torch.roll(mask, 1, -1) # roll the tensor 1 unit on the -1 dim, shift right 1 unit
-    victim_odd[::2] = 0
-    victim_even = torch.roll(mask & (~victim_odd), -1, -1)
-    victim_even[1::2] = 0
-    victim = victim_even | victim_odd
-    quant_data = quant_data * (~victim)
-
-The authors were writing elegant and glamorous code. But this seems not to correspond with the paper content, which says in a outlier-outlier pair the bigger one will be retained.
-
-Olive has really inspiring experiental results, we tried to reproduce the accuracy results on missions requiring less computational resources. And because hardware doesn't support the FP-based formats, it's predictable there won't be real savings on memory or decrease on inference time. We only conduct the INT4 experiments.
-## The process
-There was no obstacles worthy to be noted, the source code has a commendable quality. Follow the instructions of the README file, the executable shell file for results on relatively small models is in olive_quantization/bert/scripts.
-You may only need to modify a little here according to your environment and config.
-## Results
-Reproduced:
-| Model | CoLA  | SST-2 | MNLI | QQP | MPRC |
-| :----:| :----: | :----: | :----: | :----: | :----: |
-| BERT-base | 59.33 | 91.86 | 83.78 | 90.38 | 88.73 |
-| BART-base | 53.30 | 93.58 | 85.22 | 91.38 | 86.03 |
-| BERT-large | 64.39 | 93.35 | 86.50 | 91.03 | 87.99 |
-
-Original:
-| Model | CoLA  | SST-2 | MNLI | QQP | MPRC |
-| :----:| :----: | :----: | :----: | :----: | :----: |
-| BERT-base | 59.99 | 92.55 | 83.83 | 90.34 | 87.75 |
-| BART-base | 52.69 | 94.15 | 85.54 | 91.37 | 85.29 |
-| BERT-large | 63.23 | 92.43 | 84.80 | 90.11 | 87.01 |
-
-Reropduced:
-| Model | SQuAD v1.1  | SQuAD v2.0 |
-| :----:| :----: | :----: |
-| BERT-base | 86.31 / 78.06 | 75.90 / 71.93 |
-| BART-base | 88.11 / 79.64  | 78.04 / 74.37 |
-
-
-Oringinal:
-
-| Model | SQuAD v1.1  | SQuAD v2.0 |
-| :----:| :----: | :----: |
-| BERT-base | 86.38 / 78.24 | 75.67 / 71.54 |
-| BART-base | 88.07 / 79.81  | 77.70 / 74.08 |
-
-We can see the reproduced results are consistent with the original. However, I lacked a means to monitor the gpu memory occupation, inference time before and after olive quantization isn't experienmented either.  
-
-Update of 10.11:
-
-I've got several means to monitor GPU memory occupation constantly. First, I was taught that it's not advisable to run front-end training or inference. If the front-end connection breaks or the terminal shut down, 
-The process will be killed and this can result in great loss of time and computaional resources. Run command like such:
-
-    nohup [your command] &
-
-This will generate a nohup.out file in current path which records the output you should have seen in the terminal.
-But if you want to terminate the process, you need to find its PID and kill accordingly.
-
-    ps -aux | grep "myShellScript.sh" 
-
-or use 
-
-    ps -def | grep "myShellScript.sh"
-
-to search for the PID. And kill the process by
-
-    kill -9 PID
-
-And also there are several ways to continuously monitor the GPU memory:
-
-Flush the nvidia-smi command every 10 seconds:
-    nvidia-smi -l 10
-The above method displays current and history information at the same time. And this way only shows current info, flushing every 1 second:
-
-    watch -n 1 nvidia-smi
-
-nvtop: 
-
-    sudo apt install nvtop
-nvitop:
-this can be installed by pip as a python package. Run this command to display overall GPU info:
-
-    nvitop -m full
 
 # Smoothquant
 When referring to the github repo of smoothquant I discovered peers discussing auto GPTQ. That seems an approach devised earlier and also encapsulated, so I'll also conduction investigation and maybe experiment on it.
 
-Smoothquant relies on torch-int, both are repos created and maintained by mit-han-lab. Note that there are two jupyter notebook files to reproduce the experiment results, but one is already unusable.
-
-See issue #33 and issue #58, of which the latter was created by me.
+Smoothquant relies on torch-int, both are repos created and maintained by mit-han-lab. Note that there are two jupyter notebook files to reproduce the experiment results, but one is already unusable, because of problems of git lfs. For more details see issue #33 and issue #58, of which the latter was created by me.
 
 The configuration and compilation of torch-int seem to be what's really challenging for me student with developing knowledge and capabilities.
 
+# Installation of torch-int
+### Questions of using git clone
 Following the instructions in the readme file, error just occured when executing:
 
     git clone --recurse-submodules https://github.com/Guangxuan-Xiao/torch-int.git
@@ -124,6 +33,8 @@ The cloning of cutlass repo wasn't successful yet. I quickly found it was the fo
 I tried ways of creating a .gitignore or .gitkeep file, however they resulted in a non-empty folder thus obstructing the cloning.
 
 Why don't I just download zip, uncompress and upload? This seems foolish, but it worked. 
+
+### Version conflict of tools
 
 The next problem is a version conflict.
 
@@ -153,6 +64,8 @@ So I built the soft link by:
     sudo ln -s /opt/conda/lib/python3.8/site-packages/cmake/data/bin/cmake /usr/bin/cmake
 
 And it worked. 
+
+### Python executable file configuration of cmake
 
 New problem stroke in the configuration process by cmake:
 
@@ -246,7 +159,7 @@ But this also failed. Let's give a more careful look at the file and the error m
     message(FATAL_ERROR "Error installing cutlass_library package. See ${CMAKE_CURRENT_BINARY_DIR}/cutlass_library_installation.log")
     endif()
 
-From CSDN, I learned a liitle about find_package function:
+From CSDN, I learned a little about find_package function:
 
     Usage:
     find_package(<PackageName> [version] [EXACT] [QUIET] [MODULE]
@@ -266,8 +179,10 @@ It's here where the environment variable got changed. So insert such a violent s
 
 And this small question is finally solved. 
 <p align="center">
-  <img src="figure/build_cutlass.png">
+  <img src="figures/build_cutlass.png">
 </p>
+
+### C++ headfile link problem, setuptools usage and include path configuration
 
 Then, run
 
@@ -341,7 +256,11 @@ Execute:
     find -name host_tensor.h
     ./submodules/cutlass/tools/util/include/cutlass/util/host_tensor.h
 
-After adding this to path, the include problem is solved. And the following:
+After adding this to path, the include problem is solved. 
+
+### Error caused by low C++ version
+
+And the following:
 
     /opt/torch-int/submodules/cutlass/include/cute/util/type_traits.hpp(62): error: namespace "std" has no member "conjunction"
 
@@ -375,4 +294,106 @@ After adding this to path, the include problem is solved. And the following:
     100 errors detected in the compilation of "torch_int/kernels/linear.cu".
     Compilation terminated.
 
-It's supposed that these are because the C++ version is too low.
+It's supposed that these are because the C++ version is too low. Let me try out how to configure.
+
+Modify the parameter 'cxx' in extra_compile_args from ['-std=c++14', '-O3'] to ['-std=c++17', '-O3'] and all the errors above is solved. The warning that integer conversion resulted in a change of sign remains. 
+
+### Changes of lib position and name
+
+And the next question:
+
+    g++ -pthread -shared -B /opt/conda/compiler_compat -L/opt/conda/lib -Wl,-rpath=/opt/conda/lib -Wl,--no-as-needed -Wl,--sysroot=/ build/temp.linux-x86_64-3.8/torch_int/kernels/linear.o build/temp.linux-x86_64-3.8/torch_int/kernels/bmm.o build/temp.linux-x86_64-3.8/torch_int/kernels/fused.o build/temp.linux-x86_64-3.8/torch_int/kernels/bindings.o -L/opt/conda/lib/python3.8/site-packages/torch/lib -L/usr/local/cuda/lib64 -lc10 -ltorch -ltorch_cpu -ltorch_python -lcudart -lc10_cuda -ltorch_cuda_cu -ltorch_cuda_cpp -o build/lib.linux-x86_64-3.8/torch_int/_CUDA.cpython-38-x86_64-linux-gnu.so -lcublas_static -lcublasLt_static -lculibos -lcudart -lcudart_static -lrt -lpthread -ldl -L/usr/lib/x86_64-linux-gnu/
+    /opt/conda/compiler_compat/ld: cannot find -lcublas_static
+    /opt/conda/compiler_compat/ld: cannot find -lcublasLt_static
+    collect2: error: ld returned 1 exit status
+    error: command 'g++' failed with exit status 1
+
+This seems to be due to inconsistent positions. Issue #14 of the torch-int repo described this problem over 4 months ago but hasn't fixed yet...
+
+The ld file in the compiler_compat folder is a linker executable file. It is used by the compiler to link object files and libraries together to create an executable or shared library, and is a compatibility linker that can be used with older versions of GCC that do not support newer linker options.
+
+Use 
+
+    find / -name "cublasLt" -print
+
+but there's nearly no result.
+The command searches for files and directories named “cublasLt” in the entire file system, starting from the root directory /. The -name option specifies the name of the file or directory to search for, and -print option prints the path of each file or directory that matches.
+So use 
+
+    find / -name "*cublas*" -print
+
+There are a lot of results, and the possibly correlated ones are:
+  
+    /opt/conda/lib/python3.8/site-packages/torch/lib/libcublas.so.11
+    /opt/conda/lib/python3.8/site-packages/torch/lib/libcublasLt.so.11
+    /usr/local/cuda-11.6/targets/x86_64-linux/lib/libcublas.so
+    /usr/local/cuda-11.6/targets/x86_64-linux/lib/libcublas.so.11
+    /usr/local/cuda-11.6/targets/x86_64-linux/lib/libcublas.so.11.8.1.74
+    /usr/local/cuda-11.6/targets/x86_64-linux/lib/libcublasLt.so
+    /usr/local/cuda-11.6/targets/x86_64-linux/lib/libcublasLt.so.11
+    /usr/local/cuda-11.6/targets/x86_64-linux/lib/libcublasLt.so.11.8.1.74
+    /usr/local/cuda-11.6/targets/x86_64-linux/lib/stubs/libcublas.so
+    /usr/local/cuda-11.6/targets/x86_64-linux/lib/stubs/libcublasLt.so
+
+In Linux, .so files are shared library files, also known as shared object files. A shared library is a set of reusable code and data that can be shared by multiple programs, reducing memory usage and disk space.
+
+The .so file extension indicates that it is a shared library file. In Linux, the naming convention for shared library files is lib<name>.so.<version>. 
+
+Bing AI tells that the stubs folder contains stub libraries for CUDA. Stub libraries are used to provide a minimal implementation of a library’s interface, which can be used for linking and testing purposes without requiring the full implementation of the library.
+In the context of CUDA, stub libraries are used to provide a minimal implementation of the CUDA driver API, which can be used to compile and link CUDA applications on systems that do not have a GPU or the full CUDA toolkit installed. So these two don't worth a try. 
+
+At first I thought of editing the ld file, but failed to work out how to open it. I just modify the lib name from cublas_static to cublas, and in this way the compilation can finish.
+
+    Installed /opt/conda/lib/python3.8/site-packages/torch_int-0.0.0-py3.8-linux-x86_64.egg
+    Processing dependencies for torch-int==0.0.0
+    Finished processing dependencies for torch-int==0.0.0
+
+### Finally, it works out
+
+Execute python tests/test_linear_modules.py:
+
+    test_w8a8b8o8_linear_relu
+    ic| r2: tensor(0.0002)
+    test_w8a8b8o8_linear
+    ic| r2: tensor(0.0002)
+    test_w8a8b32o32_linear_with_scaling
+    ic| r2: tensor(0.0002)
+    test_w8a8bfp32ofp32_linear
+    ic| r2: tensor(0.0001)
+
+Torch-int has been successfully installed. It's been a long way. 
+# Begin experiments on smoothquant, OPT 6.7B
+Nvitop is so comfortable.
+
+<p align="center">
+  <img src="figures/nvitop.png">
+</p>
+
+Modify the jupyter notebook file \examples\smoothquant_opt_real_int8_demo.ipynb to a python script, which directly loads the quantized model and does evaluation both on accuarcy and latency. And the hardware only allows me to try a model equals or smaller than opt-6.7B.
+It will take some time to download the models. 
+
+### Tensors not on the same device
+
+A strange error occur in the case that I've set CUDA_VISIBLE_DEVICES 5. 
+
+    RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cuda:1!
+
+I didn't get useful measures on the Internet, but asked my mentor about this question. He told me to add CUDA_VISIBLE_DEVICES=5 before the command, this has higher priority and will be obeyed in the whole execution process. There isn't any parameter about devices in code of smoothquant, this may count for a flaw. Users may have to use this approach, or configure the CUDA_VISIBLE_DEVICES variable in any possible file.
+
+# FINAL RESULT
+Model size: 12700.031MB
+FP16 accuracy: 0.799, per-sample lantecy: 51.663ms
+Model size: 6556.657MB
+SmoothQuant INT8 accuracy: 0.803, per-sample lantecy: 47.779ms
+
+FP16 GPU memory occupation:
+<p align="center">
+  <img src="figures/original_opt6.7b_memory.png">
+</p>
+
+Int8 smoothquant GPU memory occupation:
+<p align="center">
+  <img src="figures/smooth_int8_opt6.7b_memory.png">
+</p>
+
+There's only a decrease of 7.5% on inference time, this is more or less disappointing. And GPU memory comsumption is cut down by about 41%.
