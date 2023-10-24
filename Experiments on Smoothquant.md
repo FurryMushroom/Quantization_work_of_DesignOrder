@@ -362,7 +362,7 @@ Execute python tests/test_linear_modules.py:
     ic| r2: tensor(0.0001)
 
 Torch-int has been successfully installed. It's been a long way. 
-# Begin experiments on smoothquant, OPT 6.7B
+## Begin experiments on smoothquant, OPT 6.7B
 Nvitop is so comfortable.
 
 <p align="center">
@@ -380,11 +380,12 @@ A strange error occur in the case that I've set CUDA_VISIBLE_DEVICES 5.
 
 I didn't get useful measures on the Internet, but asked my mentor about this question. He told me to add CUDA_VISIBLE_DEVICES=5 before the command, this has higher priority and will be obeyed in the whole execution process. There isn't any parameter about devices in code of smoothquant, this may count for a flaw. Users may have to use this approach, or configure the CUDA_VISIBLE_DEVICES variable in any possible file.
 
-# FINAL RESULT
-Model size: 12700.031MB
-FP16 accuracy: 0.799, per-sample lantecy: 51.663ms
-Model size: 6556.657MB
-SmoothQuant INT8 accuracy: 0.803, per-sample lantecy: 47.779ms
+## Result
+
+    Model size: 12700.031MB
+    FP16 accuracy: 0.799, per-sample lantecy: 51.663ms
+    Model size: 6556.657MB
+    SmoothQuant INT8 accuracy: 0.803, per-sample lantecy: 47.779ms
 
 FP16 GPU memory occupation:
 <p align="center">
@@ -396,4 +397,24 @@ Int8 smoothquant GPU memory occupation:
   <img src="figures/smooth_int8_opt6.7b_memory.png">
 </p>
 
-There's only a decrease of 7.5% on inference time, this is more or less disappointing. And GPU memory comsumption is cut down by about 41%.
+There's only a decrease of 7.5% on inference time, this is more or less disappointing. And GPU memory comsumption is cut down by about 41%, and some inherent take-ups should be considered.
+
+## Begin experiments on smoothquant, OPT 30B
+
+    Model size: 57171.898MB
+    FP16 accuracy: 0.807, per-sample lantecy: 226.516ms
+    Model size: 28949.540MB
+    SmoothQuant INT8 accuracy: 0.8, per-sample lantecy: 155.731ms
+
+
+FP16 GPU memory occupation:
+<p align="center">
+  <img src="figures/original_opt30b_memory.png">
+</p>
+
+Int8 smoothquant GPU memory occupation:
+<p align="center">
+  <img src="figures/smooth_int8_opt30b_memory.png">
+</p>
+
+# FINAL RESULT
