@@ -1,8 +1,8 @@
 
 # Smoothquant
-When referring to the github repo of smoothquant I discovered peers discussing auto GPTQ. That seems an approach devised earlier and also encapsulated, so I'll also conduction investigation and maybe experiment on it.
+When referring to the github repo of smoothquant I discovered peers discussing auto GPTQ. That seems an approach devised earlier and also encapsulated, so I'll also conduct investigation and maybe experiment on it.
 
-Smoothquant relies on torch-int, both are repos created and maintained by mit-han-lab. Note that there are two jupyter notebook files to reproduce the experiment results, but one is already unusable, because of problems of git lfs. For more details see issue #33 and issue #58, of which the latter was created by me.
+[Smoothquant](https://github.com/mit-han-lab/smoothquant) relies on [torch-int](https://github.com/Guangxuan-Xiao/torch-int). Note that there are two jupyter notebook files to reproduce the experiment results, but one is already unusable, because of problems of git lfs. For more details see [issue #33](https://github.com/mit-han-lab/smoothquant/issues/33) and issue [issue #58](https://github.com/mit-han-lab/smoothquant/issues/58) of the smoothquant repo, of which the latter was created by me.
 
 The configuration and compilation of torch-int seem to be what's really challenging for me student with developing knowledge and capabilities.
 
@@ -19,7 +19,7 @@ The error information is as follows:
     kex_exchange_identification: Connection closed by remote host
     fatal: Could not read from remote repository.
 
-I felt strange that the Nv repo, which should be in well maintenance cannot be found. I created the issue #22 but later I found the answer to the question in issue #3.
+I felt strange that the Nv repo, which should be in well maintenance cannot be found. I created the [issue #22](https://github.com/Guangxuan-Xiao/torch-int/issues/22) in the torch-int repo but later I found the answer to the question in [issue #3](https://github.com/Guangxuan-Xiao/torch-int/issues/3).
 
 The ssh repo address sometimes fails to function, use https instead.
 
@@ -308,7 +308,7 @@ And the next question:
     collect2: error: ld returned 1 exit status
     error: command 'g++' failed with exit status 1
 
-This seems to be due to inconsistent positions. Issue #14 of the torch-int repo described this problem over 4 months ago but hasn't fixed yet...
+This seems to be due to inconsistent positions. [Issue #14](https://github.com/Guangxuan-Xiao/torch-int/issues/14) of the torch-int repo described this problem over 4 months ago but hasn't fixed yet...
 
 The ld file in the compiler_compat folder is a linker executable file. It is used by the compiler to link object files and libraries together to create an executable or shared library, and is a compatibility linker that can be used with older versions of GCC that do not support newer linker options.
 
@@ -397,7 +397,7 @@ Int8 smoothquant GPU memory occupation:
   <img src="figures/smooth_int8_opt6.7b_memory.png">
 </p>
 
-There's only a decrease of 7.5% on inference time, this is more or less disappointing. And GPU memory comsumption is cut down by about 41%, and some inherent take-ups should be considered.
+There's only a decrease of 7.5% on inference time, this is more or less disappointing. And GPU memory comsumption is cut down by about 41%, but some inherent take-ups should be considered, the actual percentage of saving is more.
 
 ## Begin experiments on smoothquant, OPT 30B
 
@@ -417,4 +417,7 @@ Int8 smoothquant GPU memory occupation:
   <img src="figures/smooth_int8_opt30b_memory.png">
 </p>
 
+Inference time decreases by 31.2%, and memory occupation is approximately cut down by a half.
 # FINAL RESULT
+
+The environment is successfully deployed in the docker, and result in the paper is successfully reproduced. Smoothquant is verified to have great potential in application, and the next is to apply it to the company products. However due to commercial reasons the followings cannot be open-sourced. 
